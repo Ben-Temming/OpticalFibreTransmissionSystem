@@ -48,7 +48,7 @@ disp(['gamma (W^-1/m): ' num2str(gamma)]);
 %% Initial pulse 
 psi0 = sqrt(abs(beta2)/(gamma* T0^2)); %peak amplitude calculated from the one-solition conditoin 
 %psi = psi0*sech(t/T0); 
-disp(['psi0 (peak amplitude)(root(W): ' num2str(psi0)]);
+disp(['psi0 (peak amplitude)(W^(1/2)): ' num2str(psi0)]);
 
 %calculating the linear and the non-linear length 
 LD = (T0^2)/abs(beta2); %linear length (m)
@@ -94,8 +94,7 @@ psi = psi0*sech(t/T0);
 %calculate the temporl intensity (|x|^2)
 psi_temporal_intensity = abs(psi).^2;  
 
-% Plot the signal (fucked because of units)
-
+% Plot the signal
 %convert time to picos seconds (ps) for the plot 
 t_ps = t/(10^(-12));
 
