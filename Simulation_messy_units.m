@@ -1,58 +1,56 @@
 clc; clear; close all;
 
-%{
-All calculations are performend in SI Units (m, s, ...), so the 
-values have to be converted before the calculations and be converted 
-back before displaying
-%}
-
 %% Constants 
-c = 2.9986*10^8; %speed of light in vacum (m/s) 
-disp(['c (m/s): ' num2str(c)]);
-
+c = 2.9986*10^8; %*10^(-12)*10^(-3);%speed of light in vacum (km/ps
+disp(['c: ' num2str(c)]);
 %% define the inputs
-T = 100*10^(-12); %period in seconds (from pico seconds, ps)
+T = 100; %period in ps,  100*10^(-12); %period in seconds (from pico seconds, ps)
 duty_cycle = 25; % duty cycle in % 
-lamda0 = 1.55*10^(-6); %central wavelength in meter (from 1.55micro meters) 
-L = 20*10^3; %fibre length in meter (from km) 
-alphadB = 0.2*10^(-3); %loss in dB/m (from dB/km)
-D = 17*10^(-6); %dispersion coefficient in s/m^2 (from ps/nm/km) 
-n2 = 2.7*10^(-20); % non linear coefficient in m^2/W (from km^2/W) 
-Aeff = 55*10^(-12); % effective core area in m^2 (from micro m^2) 
+lamda0 = 1.55; %central wavelength in micro meters, 1.55*10^(-6); %central wavelength (from 1.55micro meters) 
+L = 20; %fibre length in km,  20*10^3; %fibre length (from km) 
+alphadB = 0.2; %loss in dB/km, 0.2*10^(-3); %loss in dB/m (from dB/km)
+
+% need converting to SI unit
+D = 17; %dispersion coefficient (ps/nm/km) 
+n2 = 2.7*10^(-26); % non linear coeeficient (km^2/W) 
+Aeff = 55; % effective core area (micro m^2) 
 
 
 %% calculated inputs 
-f = 1/T; %frequency (Hz)
-T0 = (duty_cycle/100)*T; %pulse width (s)
-omega0 = (2*pi*c)/lamda0; %angular frequency (rad s^-1)
-alpha = alphadB/4.343; % loss in (m^-1)
-beta2 = -((D*(lamda0^2))/(2*pi*c)); %GVD parameter (s^2/m)
-gamma = (n2*omega0)/(c*Aeff); %SPM parameter (W^-1 m^-1)
+f = 1/T; %frequency in THz,  %frequency (Hz)
+omega0 = (2*pi*c)/lamda0; %angular frequency 
+
+T0 = (duty_cycle/100)*T; %pulse width in pico seconds
+alpha = alphadB/4.343; % loss in km^-1
+beta2 = -((D*(lamda0^2))/(2*pi*c)); %GVD parameter (supposed to be ps^2/km, not sure how)
+gamma = (n2*omega0)/(c*Aeff); %SPM parameter (supposed to be W^-1 km^-1, not sure how)
+
 
 %% display variables
-disp(['T (s): ' num2str(T)]);
+disp(['T (ps): ' num2str(T)]);
 disp(['duty_cycle (%): ' num2str(duty_cycle)]);
-disp(['T0 (s): ' num2str(T0)]);
-disp(['lamda0 (m): ' num2str(lamda0)]);
-disp(['L (m): ' num2str(L)]);
-disp(['alphadB (dB/m): ' num2str(alphadB)]);
-disp(['D (s/m^2): ' num2str(D)]);
-disp(['n2 (m^2/W): ' num2str(n2)]);
-disp(['Aeff (m^2): ' num2str(Aeff)]);
-disp(['f (Hz): ' num2str(f)]);
-disp(['omega0 (rad/s): ' num2str(omega0)]);
-disp(['alpha (m^-1): ' num2str(alpha)]);
-disp(['beta2 (s^2/m): ' num2str(beta2)]);
-disp(['gamma (W^-1/m): ' num2str(gamma)]);
+disp(['T0 (ps): ' num2str(T0)]);
+disp(['lamda0 (um): ' num2str(lamda0)]);
+disp(['L (km): ' num2str(L)]);
+disp(['alphadB (dB/km): ' num2str(alphadB)]);
+disp(['D (ps/nm/km): ' num2str(D)]);
+disp(['n2 (km^2/W): ' num2str(n2)]);
+disp(['Aeff (um^2): ' num2str(Aeff)]);
+disp(['f (THz): ' num2str(f)]);
+disp(['omega0 (rad/ps): ' num2str(omega0)]);
+disp(['alpha (km^-1): ' num2str(alpha)]);
+disp(['beta2 (ps^2/km): ' num2str(beta2)]);
+disp(['gamma (W^-1/km): ' num2str(gamma)]);
 
 %% Initial pulse 
 psi0 = sqrt(abs(beta2)/(gamma* T0^2)); %peak amplitude calculated from the one-solition conditoin 
+%psi0 = 0.1320;
 %psi = psi0*sech(t/T0); 
-disp(['psi0 (peak amplitude)(root(W): ' num2str(psi0)]);
+disp(['psi0 (peak amplitude): ' num2str(psi0)]);
 
 %calculating the linear and the non-linear length 
-LD = (T0^2)/abs(beta2); %linear length (m)
-LNL = 1/(gamma*(psi0^2)); %nonlinear length (m)
+LD = (T0^2)/abs(beta2); %linear length 
+LNL = 1/(gamma*(psi0^2)); %nonlinear length
 
 
 %% Discretisation 
@@ -95,20 +93,13 @@ psi = psi0*sech(t/T0);
 psi_temporal_intensity = abs(psi).^2;  
 
 % Plot the signal (fucked because of units)
-
-%convert time to picos seconds (ps) for the plot 
-t_ps = t/(10^(-12));
-
 figure;
-plot(t_ps, psi_temporal_intensity, 'LineWidth', 2);
-xlabel('Time [ps]');
+plot(t, psi_temporal_intensity, 'LineWidth', 2);
+xlabel('Time (ps)');
 %ylabel('\psi(t)');
 ylabel('\psi(z = 0, t)|^2 [W]');
 title('Plot of \psi(t)');
 grid on;
-
-% Set y-axis limits
-%ylim([0, 0.02]);
 
 %discretisation of the space z (axial propagation direction)
 dz = (1/1000)*min(LD, LNL); %make z sampling rate a fraction of the smallest LD, LNL value 
