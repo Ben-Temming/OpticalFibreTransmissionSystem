@@ -92,7 +92,6 @@ domega = 2*pi*df;
 omega = (-N/2 : N/2 - 1)*domega; 
 
 
-
 %crate the signal
 psi = psi0*sech(t/T0);  
 %calculate the temporl intensity (|x|^2)
@@ -101,6 +100,7 @@ psi_temporal_intensity = abs(psi).^2;
 % Plot the signal
 %convert time to picos seconds (ps) for the plot 
 t_ps = t/(10^(-12));
+dt_ps = dt*(10^12); 
 
 figure;
 plot(t_ps, psi_temporal_intensity, 'LineWidth', 2);
@@ -118,14 +118,14 @@ dz = (1/1000)*min(LD, LNL); %make z sampling rate a fraction of the smallest LD,
 disp(['dz (spatial sampling rate): ' num2str(dz)]);
 Nz = round(L/dz); %calculate the number of samples 
 dz = L/Nz; %update dz fit the rounded range
+%create distance vector 
+z = (0:Nz)*dz;
 
 disp(['dz (spatial sampling rate): ' num2str(dz)]);
 disp(['Nz (number of samples): ' num2str(Nz)]);
 
 
 %% Split-Step Fourier Method
-alpha = 0; %for testing
-
 %initialize matrix to store pulse at each step 
 psi_evoluation = zeros(Nz, N); 
 psi_evoluation(1, :) = psi;
@@ -135,8 +135,9 @@ D_hat_jw = -(alpha/2) + (1i*beta2*omega.^2)/2;
 dispersion = exp((dz*D_hat_jw)/2); %half dispresion for more accuracy
 
 
-%perform SSFM for each distance step 
-for z_step = 2:Nz 
+%perform SSFM for each distance step (from 1 to Nz+1, as 0 is the intial
+%pulse)
+for z_step = 2:Nz+1 
     %first-half dispersion 
     Psi = fftshift(fft(psi)); %fourier transform 
     Psi = Psi.*dispersion; %calculate dispersion 
@@ -156,63 +157,38 @@ for z_step = 2:Nz
 
 end
 
+%% Plotting result 
+%Create 3d plot for only a subset of z points to show propagation 
+selected_z_indices = round(linspace(1, Nz, 20)); %select 20 points for plotting 
 
-%calculate the temporl intensity (|x|^2)
-%psi_temporal_intensity = abs(psi).^2;  
-psi_temporal_intensity = abs(psi_evoluation(end, :)).^2;  
+%selected the relevant values 
+selected_psi_vals = psi_evoluation(selected_z_indices, :); 
+selected_z_values = z(selected_z_indices); 
 
-% Plot the signal
-figure;
-plot(t_ps, psi_temporal_intensity, 'LineWidth', 2);
-xlabel('Time [ps]');
-%ylabel('\psi(t)');
-ylabel('\psi(z = 0, t)|^2 [W]');
-title('Plot of \psi(t)');
-grid on;
+%convert z to km instead of meters 
+selected_z_values_km = selected_z_values/1000; 
 
-
-% Create a meshgrid for z and time
-[z_mesh, time_mesh] = meshgrid((1:Nz)*dz, t_ps);
-
-intensities = abs(psi_evoluation).^2; 
-intensities = intensities'; %transpose
-
-% Create a 3D surface plot
-figure;
-surf(time_mesh, z_mesh, intensities , 'EdgeColor', 'interp');
-xlabel('Time [ps]');
-ylabel('Z');
-zlabel('Signal Power');
-title('Evolution of Signal Power along Z and Time');
+%calculate intensities 
+selected_intensities = abs(selected_psi_vals).^2;
 
 
-
-%{
-%perform SSFM for each distance step 
-for z_step = 2:Nz 
-    psi = psi_evoluation(z_step-1, :); %get the prvious psi 
-    N_hat = 1i*gamma*(abs(psi).^2); %nonlinear operator
-
-    temp = fft(dispersion.*ifft(psi)); 
-    temp = temp.*exp(dz*N_hat); %apply nonlinear operator
-    temp = fft(dispersion.*ifft(temp)); 
-    psi_evoluation(z_step, :) = temp; 
-
+%create the plot
+figure('Position', [100, 100, 800, 400]); % _, _, ,width, height
+axes()
+hold on
+for i = 1:numel(selected_z_indices)
+    %plot the signal for the corresponding z value
+    plot3(t_ps, selected_z_values_km(i)*ones(size(t)), selected_intensities(i, :), 'Color', 'blue', 'LineWidth', 1); 
 end
+grid on
+%add labels
+xlabel('t [ps]');
+ylabel('z [km]');
+zlabel('\psi(z = 0, t)|^2 [W]');
 
+%adjust rotation
+view(45, 30)
 
-A       = zeros(M, N);  % Field A(z,T) : Matrix with all the calculated results
-A(1,:)  = A0;           % Initial value A(0,T)
-
-D = -alpha/2 + 0.5i*beta2*fftshift(w).^2;
-
-for m = 2:M
-    u = A(m-1,:);
-    N = 1i*gamma*abs(u).^2;
-    temp = fft( exp(h/2*D).*ifft(u)  );
-    temp = exp(h*N).*temp;
-    A(m,:) = fft(  exp(h/2*D).*ifft(temp)  );
-end
-%}
-
-
+%adjust axis
+ylim([0, selected_z_values_km(end)]);
+xticks(min(t_ps):100:max(t_ps));
