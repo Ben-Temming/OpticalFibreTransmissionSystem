@@ -14,7 +14,7 @@ disp(['c (m/s): ' num2str(c)]);
 T = 100*10^(-12); %period in seconds (from pico seconds, ps)
 duty_cycle = 25; % duty cycle in % 
 lamda0 = 1.55*10^(-6); %central wavelength in meter (from 1.55micro meters) 
-L = 20*10^3; %fibre length in meter (from km) 
+L = 28.845*10^3; %fibre length in meter (from km) 
 alphadB = 0.2*10^(-3); %loss in dB/m (from dB/km)
 D = 17*10^(-6); %dispersion coefficient in s/m^2 (from ps/nm/km) 
 n2 = 2.7*10^(-20); % non linear coefficient in m^2/W (from km^2/W) 
@@ -53,13 +53,14 @@ disp(['psi0 (peak amplitude)(W^(1/2)): ' num2str(psi0)]);
 %calculating the linear and the non-linear length 
 LD = (T0^2)/abs(beta2); %linear length (m)
 LNL = 1/(gamma*(psi0^2)); %nonlinear length (m)
-
+disp(['LD (m): ' num2str(LD)]);
+disp(['LNL (m): ' num2str(LNL)]);
 
 %% Discretisation 
 Tmax = 40*T0; %time window width 
 fmax = 40/(2*pi*T0); %frequency window width
-disp(['Tmax (ps): ' num2str(Tmax)]);
-disp(['fmax (THz): ' num2str(fmax)]);
+disp(['Tmax (s): ' num2str(Tmax)]);
+disp(['fmax (Hz): ' num2str(fmax)]);
 
 %combining the window width and the Nyqvist criteria to avoid aliasing
 %effects
@@ -75,11 +76,12 @@ disp(['Number of samples: ' num2str(N0)]);
 %adjust N0 to be in the order 2^n
 N = 2^nextpow2(N0); %set N to the 2^n closest to N0
 dt = Tmax/N; %update dt so that Tmax/dt = N
-df = N/(2*Tmax); %update fmax so that 2fmax/df = N
+fmax = N/(2*Tmax); %update fmax so that 2fmax/df = N
+
 
 disp(['Updated number of samples: ' num2str(N)]);
 disp(['Updated dt (time sampling rate): ' num2str(dt)]);
-disp(['Updated df (frequency sampling rate): ' num2str(df)]);
+disp(['Updated fmax : ' num2str(df)]);
 
 %calculate the time vector (t[i] = (-N/2 + i - 1))
 t = (-N/2 : N/2 - 1)*dt; %create time vector from -N/2 to N/2 -1 and scale by dt
@@ -88,6 +90,8 @@ f = (-N/2 : N/2 - 1)*df;
 %calculate the angular vector (omega[i] = (-N/2 + i -1))
 domega = 2*pi*df; 
 omega = (-N/2 : N/2 - 1)*domega; 
+
+
 
 %crate the signal
 psi = psi0*sech(t/T0);  
@@ -111,5 +115,104 @@ grid on;
 
 %discretisation of the space z (axial propagation direction)
 dz = (1/1000)*min(LD, LNL); %make z sampling rate a fraction of the smallest LD, LNL value 
+disp(['dz (spatial sampling rate): ' num2str(dz)]);
 Nz = round(L/dz); %calculate the number of samples 
 dz = L/Nz; %update dz fit the rounded range
+
+disp(['dz (spatial sampling rate): ' num2str(dz)]);
+disp(['Nz (number of samples): ' num2str(Nz)]);
+
+
+%% Split-Step Fourier Method
+alpha = 0; %for testing
+
+%initialize matrix to store pulse at each step 
+psi_evoluation = zeros(Nz, N); 
+psi_evoluation(1, :) = psi;
+
+%calculate the dispersion term (constant over distance)
+D_hat_jw = -(alpha/2) + (1i*beta2*omega.^2)/2; 
+dispersion = exp((dz*D_hat_jw)/2); %half dispresion for more accuracy
+
+
+%perform SSFM for each distance step 
+for z_step = 2:Nz 
+    %first-half dispersion 
+    Psi = fftshift(fft(psi)); %fourier transform 
+    Psi = Psi.*dispersion; %calculate dispersion 
+    psi = ifft(fftshift(Psi));%inverse fourier transform 
+
+    %full nonlinearity 
+    N_hat = 1i*gamma*(abs(psi).^2); %nonlinear operator 
+    psi = psi.*exp(dz*N_hat); %apply nonlinear operator 
+    
+    %second-half dispersion 
+    Psi = fftshift(fft(psi)); %fourier transform 
+    Psi = Psi.*dispersion; %calculate dispersion 
+    psi = ifft(fftshift(Psi));%inverse fourier transform 
+
+    %store the pulse at each step 
+    psi_evoluation(z_step, :) = psi; 
+
+end
+
+
+%calculate the temporl intensity (|x|^2)
+%psi_temporal_intensity = abs(psi).^2;  
+psi_temporal_intensity = abs(psi_evoluation(end, :)).^2;  
+
+% Plot the signal
+figure;
+plot(t_ps, psi_temporal_intensity, 'LineWidth', 2);
+xlabel('Time [ps]');
+%ylabel('\psi(t)');
+ylabel('\psi(z = 0, t)|^2 [W]');
+title('Plot of \psi(t)');
+grid on;
+
+
+% Create a meshgrid for z and time
+[z_mesh, time_mesh] = meshgrid((1:Nz)*dz, t_ps);
+
+intensities = abs(psi_evoluation).^2; 
+intensities = intensities'; %transpose
+
+% Create a 3D surface plot
+figure;
+surf(time_mesh, z_mesh, intensities , 'EdgeColor', 'interp');
+xlabel('Time [ps]');
+ylabel('Z');
+zlabel('Signal Power');
+title('Evolution of Signal Power along Z and Time');
+
+
+
+%{
+%perform SSFM for each distance step 
+for z_step = 2:Nz 
+    psi = psi_evoluation(z_step-1, :); %get the prvious psi 
+    N_hat = 1i*gamma*(abs(psi).^2); %nonlinear operator
+
+    temp = fft(dispersion.*ifft(psi)); 
+    temp = temp.*exp(dz*N_hat); %apply nonlinear operator
+    temp = fft(dispersion.*ifft(temp)); 
+    psi_evoluation(z_step, :) = temp; 
+
+end
+
+
+A       = zeros(M, N);  % Field A(z,T) : Matrix with all the calculated results
+A(1,:)  = A0;           % Initial value A(0,T)
+
+D = -alpha/2 + 0.5i*beta2*fftshift(w).^2;
+
+for m = 2:M
+    u = A(m-1,:);
+    N = 1i*gamma*abs(u).^2;
+    temp = fft( exp(h/2*D).*ifft(u)  );
+    temp = exp(h*N).*temp;
+    A(m,:) = fft(  exp(h/2*D).*ifft(temp)  );
+end
+%}
+
+
