@@ -235,7 +235,6 @@ right_time_val = t_ps(right_index);
 left_time_avg = (t_ps(left_index) + t_ps(left_index+1))/2;
 right_time_avg = (t_ps(right_index-1) + t_ps(right_index))/2;
 
-
 %compute FWHM 
 %sign() 1: positive, 0: 0, -1: negative
 if sign(left_time_avg) ~= sign(right_time_avg)
@@ -246,21 +245,13 @@ else
     FWHM = abs(left_time_val) - abs(right_time_val); 
 end 
 
-
-%calculate the chrip (not working) 
+%calculate the chrip 
 Cdenominator = sum((t_ps.^2).*psi_final_temporal_intensity*dt_ps); 
 psi_t = ifft(fftshift(1i*omega.*fftshift(fft(psi_final)))); 
 Cnumerator = -imag(sum(t_ps.*psi_final.*conj(psi_t)))*dt_ps; 
 C = Cnumerator/Cdenominator; 
 %convert to rad/ps^2 
-%C = C*10^(-24); 
-
-
-%Frequency (shift) 
-
-
-
-
+C = C*10^(-24); 
 
 %% Pulse Parameter Display 
 
@@ -268,5 +259,5 @@ disp(['Peak amplitude [W^1/2]: ' num2str(peak_amplitude)]);
 disp(['Pulse position [ps]: ' num2str(temporal_pulse_position)]);
 disp(['FWHM [ps]: ' num2str(FWHM)]);
 
-disp(['Chirp [rad/ps^2]: ' num2str(C)]);
+%disp(['Chirp [rad/ps^2]: ' num2str(C)]);
 

@@ -8,7 +8,7 @@ back before displaying
 
 %% Constants 
 c = 2.9986*10^8; %speed of light in vacum (m/s) 
-%disp(['c (m/s): ' num2str(c)]);
+disp(['c (m/s): ' num2str(c)]);
 
 %% define the inputs
 T = 100*10^(-12); %period in seconds (from pico seconds, ps)
@@ -30,7 +30,6 @@ beta2 = -((D*(lamda0^2))/(2*pi*c)); %GVD parameter (s^2/m)
 gamma = (n2*omega0)/(c*Aeff); %SPM parameter (W^-1 m^-1)
 
 %% display variables
-%{
 disp(['T (s): ' num2str(T)]);
 disp(['duty_cycle (%): ' num2str(duty_cycle)]);
 disp(['T0 (s): ' num2str(T0)]);
@@ -45,45 +44,44 @@ disp(['omega0 (rad/s): ' num2str(omega0)]);
 disp(['alpha (m^-1): ' num2str(alpha)]);
 disp(['beta2 (s^2/m): ' num2str(beta2)]);
 disp(['gamma (W^-1/m): ' num2str(gamma)]);
-%}
 
 %% Initial pulse 
 psi0 = sqrt(abs(beta2)/(gamma* T0^2)); %peak amplitude calculated from the one-solition conditoin 
 %psi = psi0*sech(t/T0); 
-%disp(['psi0 (peak amplitude)(W^(1/2)): ' num2str(psi0)]);
+disp(['psi0 (peak amplitude)(W^(1/2)): ' num2str(psi0)]);
 
 %calculating the linear and the non-linear length 
 LD = (T0^2)/abs(beta2); %linear length (m)
 LNL = 1/(gamma*(psi0^2)); %nonlinear length (m)
-%disp(['LD (m): ' num2str(LD)]);
-%disp(['LNL (m): ' num2str(LNL)]);
+disp(['LD (m): ' num2str(LD)]);
+disp(['LNL (m): ' num2str(LNL)]);
 
 %% Discretisation 
 Tmax = 40*T0; %time window width 
 fmax = 40/(2*pi*T0); %frequency window width
-%disp(['Tmax (s): ' num2str(Tmax)]);
-%disp(['fmax (Hz): ' num2str(fmax)]);
+disp(['Tmax (s): ' num2str(Tmax)]);
+disp(['fmax (Hz): ' num2str(fmax)]);
 
 %combining the window width and the Nyqvist criteria to avoid aliasing
 %effects
 dt = 1/(2*fmax); %time sampling rate
 df = 1/Tmax; %frequency sampling rate
 
-%disp(['dt (time sampling rate): ' num2str(dt)]);
-%disp(['df (frequency sampling rate): ' num2str(df)]);
+disp(['dt (time sampling rate): ' num2str(dt)]);
+disp(['df (frequency sampling rate): ' num2str(df)]);
 
 %preparation for Fast Fourier Transform (FFT)
 N0 = round(Tmax/dt); % number of samples
-%disp(['Number of samples: ' num2str(N0)]);
+disp(['Number of samples: ' num2str(N0)]);
 %adjust N0 to be in the order 2^n
 N = 2^nextpow2(N0); %set N to the 2^n closest to N0
 dt = Tmax/N; %update dt so that Tmax/dt = N
 fmax = N/(2*Tmax); %update fmax so that 2fmax/df = N
 
 
-%disp(['Updated number of samples: ' num2str(N)]);
-%disp(['Updated dt (time sampling rate): ' num2str(dt)]);
-%disp(['Updated fmax : ' num2str(df)]);
+disp(['Updated number of samples: ' num2str(N)]);
+disp(['Updated dt (time sampling rate): ' num2str(dt)]);
+disp(['Updated fmax : ' num2str(df)]);
 
 %calculate the time vector (t[i] = (-N/2 + i - 1))
 t = (-N/2 : N/2 - 1)*dt; %create time vector from -N/2 to N/2 -1 and scale by dt
@@ -102,7 +100,6 @@ psi_temporal_intensity = abs(psi).^2;
 % Plot the signal
 %convert time to picos seconds (ps) for the plot 
 t_ps = t/(10^(-12));
-dt_ps = dt*(10^12); 
 
 figure;
 plot(t_ps, psi_temporal_intensity, 'LineWidth', 2);
@@ -117,17 +114,19 @@ grid on;
 
 %discretisation of the space z (axial propagation direction)
 dz = (1/1000)*min(LD, LNL); %make z sampling rate a fraction of the smallest LD, LNL value 
-%disp(['dz (spatial sampling rate): ' num2str(dz)]);
+disp(['dz (spatial sampling rate): ' num2str(dz)]);
 Nz = round(L/dz); %calculate the number of samples 
 dz = L/Nz; %update dz fit the rounded range
 %create distance vector 
 z = (0:Nz)*dz;
 
-%disp(['dz (spatial sampling rate): ' num2str(dz)]);
-%disp(['Nz (number of samples): ' num2str(Nz)]);
+disp(['dz (spatial sampling rate): ' num2str(dz)]);
+disp(['Nz (number of samples): ' num2str(Nz)]);
 
 
 %% Split-Step Fourier Method
+alpha = 0; %for testing
+
 %initialize matrix to store pulse at each step 
 psi_evoluation = zeros(Nz, N); 
 psi_evoluation(1, :) = psi;
@@ -159,7 +158,54 @@ for z_step = 2:Nz+1
 
 end
 
-%% Plotting result 
+%{
+%disp(max(abs(psi_evoluation(end, :))))
+
+%calculate the temporl intensity (|x|^2)
+%psi_temporal_intensity = abs(psi).^2;  
+psi_temporal_intensity = abs(psi_evoluation(end, :)).^2;  
+
+% Plot the signal
+figure;
+plot(t_ps, psi_temporal_intensity, 'LineWidth', 2);
+xlabel('Time [ps]');
+%ylabel('\psi(t)');
+ylabel('\psi(z = 0, t)|^2 [W]');
+title('Plot of \psi(t) after');
+grid on;
+%}
+
+% Create a meshgrid for z and time
+[z_mesh, time_mesh] = meshgrid(z, t_ps);
+
+intensities = abs(psi_evoluation).^2; 
+intensities = intensities'; %transpose
+
+% Create a 3D surface plot
+figure;
+surf(time_mesh, z_mesh, intensities , 'EdgeColor', 'interp');
+xlabel('Time [ps]');
+ylabel('Z');
+zlabel('Signal Power');
+title('Evolution of Signal Power along Z and Time');
+view(45, 30)
+
+
+%%{
+%try 3d plot 
+% Create a 3D surface plot using plot3
+figure;
+plot3(time_mesh(:), z_mesh(:), intensities(:), 'LineWidth', 2);
+xlabel('Time [ps]');
+ylabel('Z');
+zlabel('Signal Power');
+title('Evolution of Signal Power along Z and Time');
+grid on;
+view(45, 30)
+%}
+
+
+
 %Create 3d plot for only a subset of z points to show propagation 
 selected_z_indices = round(linspace(1, Nz, 20)); %select 20 points for plotting 
 
@@ -174,7 +220,7 @@ selected_z_values_km = selected_z_values/1000;
 selected_intensities = abs(selected_psi_vals).^2;
 
 
-%create the plot
+%clf()
 figure('Position', [100, 100, 800, 400]); % _, _, ,width, height
 axes()
 hold on
@@ -183,90 +229,15 @@ for i = 1:numel(selected_z_indices)
     plot3(t_ps, selected_z_values_km(i)*ones(size(t)), selected_intensities(i, :), 'Color', 'blue', 'LineWidth', 1); 
 end
 grid on
-%add labels
 xlabel('t [ps]');
 ylabel('z [km]');
 zlabel('\psi(z = 0, t)|^2 [W]');
-
-%adjust rotation
+%view(12.6, 27.6)
 view(45, 30)
 
-%adjust axis
 ylim([0, selected_z_values_km(end)]);
-xticks(min(t_ps):100:max(t_ps));
 
 
-%% Pulse Parameter Computations (after propergation)
-psi_final = psi_evoluation(1001, :); 
-psi_final_temporal_intensity = abs(psi_final).^2;
-
-%{
-figure;
-plot(t_ps, psi_final_temporal_intensity, 'LineWidth', 2);
-xlabel('Time [ps]');
-%ylabel('\psi(t)');
-ylabel('\psi(z = 0, t)|^2 [W]');
-title('Plot of \psi(t) final');
-grid on;
-%}
-
-%peak amplitude calculation 
-peak_amplitude = max(abs(psi_final)); 
-
-
-%temporal pulse position (note: using t_ps) 
-temporal_pulse_position = sum(t_ps.*psi_final_temporal_intensity)/sum(psi_final_temporal_intensity); 
-
-
-%full-width at half-maximum (FWHM) pulse width
-peak_intensity = max(psi_final_temporal_intensity); 
-half_peak_intensity = peak_intensity/2; 
-%find the position index of the left-side and right-side position with just
-%below peak intensity value
-peak_intensity_index = find(psi_final_temporal_intensity==peak_intensity);
-%find the first index position (from peak) of the left-side where the intensity goes below half peak intensity
-left_index = find(psi_final_temporal_intensity(1:peak_intensity_index) < half_peak_intensity, 1, 'last');
-%find the first index position of the right-side where the intensity goes below half peak intensity
-right_index = peak_intensity_index + find(psi_final_temporal_intensity(peak_intensity_index:end) < half_peak_intensity, 1, 'first') - 1;
-%get the left and right times from the time vector (using ps) 
-left_time_val = t_ps(left_index); 
-right_time_val = t_ps(right_index); 
-%compute the left and right side average (using ps) 
-left_time_avg = (t_ps(left_index) + t_ps(left_index+1))/2;
-right_time_avg = (t_ps(right_index-1) + t_ps(right_index))/2;
-
-
-%compute FWHM 
-%sign() 1: positive, 0: 0, -1: negative
-if sign(left_time_avg) ~= sign(right_time_avg)
-    %if both values have oposite signs use sum of absolute values 
-    FWHM = abs(left_time_val) + abs(right_time_val); 
-else
-    %if both values have same sign, use the difference of absolute values
-    FWHM = abs(left_time_val) - abs(right_time_val); 
-end 
-
-
-%calculate the chrip (not working) 
-Cdenominator = sum((t_ps.^2).*psi_final_temporal_intensity*dt_ps); 
-psi_t = ifft(fftshift(1i*omega.*fftshift(fft(psi_final)))); 
-Cnumerator = -imag(sum(t_ps.*psi_final.*conj(psi_t)))*dt_ps; 
-C = Cnumerator/Cdenominator; 
-%convert to rad/ps^2 
-%C = C*10^(-24); 
-
-
-%Frequency (shift) 
-
-
-
-
-
-%% Pulse Parameter Display 
-
-disp(['Peak amplitude [W^1/2]: ' num2str(peak_amplitude)]);
-disp(['Pulse position [ps]: ' num2str(temporal_pulse_position)]);
-disp(['FWHM [ps]: ' num2str(FWHM)]);
-
-disp(['Chirp [rad/ps^2]: ' num2str(C)]);
-
+% Adjust x-axis ticks and labels
+%xticks(linspace(min(t_ps), max(t_ps), 10)); % You can adjust the number of ticks as needed
+%xticklabels(cellstr(num2str(linspace(min(t_ps), max(t_ps), 10)'))); % Convert numerical labels to cell array of strings
