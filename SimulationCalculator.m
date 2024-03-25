@@ -74,13 +74,10 @@ classdef SimulationCalculator
                 %create gaussian pulse
                 psi = psi0*exp(-(t.^2)/(T0^2)); 
             else
-                disp("soliton")
                 %create soliton pulse
                 psi = psi0*sech(t/T0); 
             end 
 
-
-            %%{
             %% Apply the Split-Step Fourier Method
             %initialize matrix to store pulse at each step 
             psi_evoluation = zeros(Nz, N); 
@@ -109,51 +106,7 @@ classdef SimulationCalculator
                 %store the pulse at each step 
                 psi_evoluation(z_step, :) = psi; 
             end
-            
-            %%}
         end
     end
 end 
-
-
-
-
-%{
-%% Plotting result 
-%Create 3d plot for only a subset of z points to show propagation 
-selected_z_indices = round(linspace(1, Nz, 20)); %select 20 points for plotting 
-
-%selected the relevant values 
-selected_psi_vals = psi_evoluation(selected_z_indices, :); 
-selected_z_values = z(selected_z_indices); 
-
-%convert z to km instead of meters 
-selected_z_values_km = selected_z_values/1000; 
-
-%calculate intensities 
-selected_intensities = abs(selected_psi_vals).^2;
-
-
-%create the plot
-figure('Position', [100, 100, 800, 400]); % _, _, ,width, height
-axes()
-hold on
-for i = 1:numel(selected_z_indices)
-    %plot the signal for the corresponding z value
-    plot3(t_ps, selected_z_values_km(i)*ones(size(t)), selected_intensities(i, :), 'Color', 'blue', 'LineWidth', 1); 
-end
-grid on
-%add labels
-xlabel('t [ps]');
-ylabel('z [km]');
-zlabel('\psi(z = 0, t)|^2 [W]');
-
-%adjust rotation
-view(45, 30)
-
-%adjust axis
-ylim([0, selected_z_values_km(end)]);
-xticks(min(t_ps):100:max(t_ps));
-
-%}
 
