@@ -1,6 +1,8 @@
-
+% class to perform simulation calculation for propagating the pulse through
+% the optical fibre
 classdef SimulationCalculator
     properties
+        %specify properties that will be initalized in the constructor
         T, duty_cycle, lamda0, L, alphadB, D, n2, Aeff, pulse_type
     end 
 
@@ -26,16 +28,16 @@ classdef SimulationCalculator
             f = 1/obj.T; %frequency (Hz)
             T0 = (obj.duty_cycle/100)*obj.T; %pulse width (s)
             omega0 = (2*pi*c)/obj.lamda0; %angular frequency (rad s^-1)
-            alpha = obj.alphadB/4.343; % loss in (m^-1)
+            alpha_val = obj.alphadB/4.343; % loss in (m^-1)
             beta2 = -((obj.D*(obj.lamda0^2))/(2*pi*c)); %GVD parameter (s^2/m)
-            gamma = (obj.n2*omega0)/(c*obj.Aeff); %SPM parameter (W^-1 m^-1)
+            gamma_val = (obj.n2*omega0)/(c*obj.Aeff); %SPM parameter (W^-1 m^-1)
 
             %% Define the intial pulse parameters 
-            psi0 = sqrt(abs(beta2)/(gamma* T0^2)); %peak amplitude calculated from the one-solition conditoin 
+            psi0 = sqrt(abs(beta2)/(gamma_val* T0^2)); %peak amplitude calculated from the one-solition conditoin 
             
             %calculating the linear and the non-linear length 
             LD = (T0^2)/abs(beta2); %linear length (m)
-            LNL = 1/(gamma*(psi0^2)); %nonlinear length (m)
+            LNL = 1/(gamma_val*(psi0^2)); %nonlinear length (m)
 
             
             %% Discretisation 
@@ -69,7 +71,7 @@ classdef SimulationCalculator
             %create distance vector 
             z = (0:Nz)*dz;
 
-            %% Define the initial pulse (NEED FIXING)
+            %% Define the initial pulse
             if pulse_type == "Gaussian"
                 %create gaussian pulse
                 psi = psi0*exp(-(t.^2)/(T0^2)); 
@@ -84,23 +86,23 @@ classdef SimulationCalculator
             psi_evoluation(1, :) = psi;
             
             %calculate the dispersion term (constant over distance)
-            D_hat_jw = -(alpha/2) + (1i*beta2*omega.^2)/2; 
+            D_hat_jw = -(alpha_val/2) + (1i*beta2*omega.^2)/2; 
             dispersion = exp((dz*D_hat_jw)/2); %half dispresion for more accuracy
             
             %perform SSFM for each distance step (from 1 to Nz+1, as 0 is the intial pulse)
             for z_step = 2:Nz+1 
                 %first-half dispersion 
                 Psi = fftshift(fft(psi)); %fourier transform 
-                Psi = Psi.*dispersion; %calculate dispersion 
+                Psi = Psi.*dispersion; %apply dispersion 
                 psi = ifft(fftshift(Psi));%inverse fourier transform 
             
                 %full nonlinearity 
-                N_hat = 1i*gamma*(abs(psi).^2); %nonlinear operator 
+                N_hat = 1i*gamma_val*(abs(psi).^2); %nonlinear operator 
                 psi = psi.*exp(dz*N_hat); %apply nonlinear operator 
                 
                 %second-half dispersion 
                 Psi = fftshift(fft(psi)); %fourier transform 
-                Psi = Psi.*dispersion; %calculate dispersion 
+                Psi = Psi.*dispersion; %apply dispersion 
                 psi = ifft(fftshift(Psi));%inverse fourier transform 
             
                 %store the pulse at each step 

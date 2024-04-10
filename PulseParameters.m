@@ -1,4 +1,4 @@
-
+%class that contains the functions to calculate pulse paramters
 classdef PulseParameters
     methods (Static)
         
@@ -74,6 +74,7 @@ classdef PulseParameters
 
         % Method to format the value for displaying 
         function formatted_val = formatValue(val)
+            % approximate to 0 when value is smaller than 10^(-12)
             if val < 10^(-12) 
                 formatted_val = '0';
             else
